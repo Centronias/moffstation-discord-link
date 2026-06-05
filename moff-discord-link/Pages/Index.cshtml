@@ -1,0 +1,19 @@
+@page
+@model MoffDiscordLink.Pages.IndexModel
+
+@{
+    ViewData["Title"] = "Home";
+}
+
+<div class="container">
+    <h1>Moffstation Discord Linking</h1>
+    <p>This website allows you to link a Discord account to your Space Station 14 account on Moffstation.</p>
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <p>You're logged in, so now go <a asp-area="" asp-page="/Discord/Index">link your account</a>!</p>
+    }
+    else
+    {
+        <p><a asp-controller="Login" asp-action="Index">Log in</a> to continue.</p>
+    }
+</div>

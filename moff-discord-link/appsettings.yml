@@ -1,0 +1,39 @@
+Serilog:
+  Using: [ "Serilog.Sinks.Console" ]
+  MinimumLevel:
+    Default: Information
+    Override:
+      SS14: Debug
+      Microsoft: "Warning"
+      Microsoft.Hosting.Lifetime: "Information"
+      Microsoft.AspNetCore: Warning
+
+  WriteTo:
+  - Name: Console
+    Args:
+      Theme: Serilog.Sinks.SystemConsole.Themes.AnsiConsoleThemes::Code, Serilog.Sinks.Console
+      OutputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3} {SourceContext}] {Message:lj}{NewLine}{Exception}"
+
+  Enrich: [ "FromLogContext" ]
+
+ForwardProxies:
+- 127.0.0.1
+# - 172.16.0.0/12  # Supports CIDR notation for subnets (Docker)
+
+AuthServer: "https://central.spacestation14.io/auth"
+AllowedHosts: "*"
+
+# Optional: set to override the auto-detected base URL used in Discord OAuth redirect URIs.
+# BaseUrl: "https://yoursite.example.com"
+
+# You probably want to set these in `appsettings.Secret.yml
+Discord:
+  ClientId: ""
+  ClientSecret: ""
+  BotToken: ""
+
+# You probably want to set these in `appsettings.Secret.yml
+Auth:
+  Authority: "https://central.spacestation14.io/web/"
+  ClientId: "9e2ce26f-28ba-4232-b4d9-8cc08993b33e"
+  ClientSecret: "foobar"

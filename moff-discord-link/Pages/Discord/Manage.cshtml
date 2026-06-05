@@ -1,0 +1,48 @@
+@page
+@using MoffDiscordLink.Pages.Tables
+@model MoffDiscordLink.Pages.Discord.DiscordManageModel
+
+@{
+    ViewData["Title"] = "Manage Discord Links";
+}
+
+<partial name="Shared/StatusMessageAlert" />
+
+<form asp-page="./Manage" method="get" class="container mb-3">
+    <div class="form-group row">
+        <label class="col-md-3" for="searchBar">Search name or ID:</label>
+        <div class="col-md-7">
+            <input type="text" id="searchBar" name="search" value="@Model.CurrentFilter" class="form-control form-control-sm" />
+        </div>
+        <input type="submit" value="Search" class="btn btn-primary col-md-1 btn-sm" />
+        <a class="btn btn-danger btn-sm col-md-1" asp-page="./Manage">Clear</a>
+    </div>
+</form>
+
+<partial name="Tables/Pagination" for="Pagination" />
+
+<table class="table table-striped mt-3">
+    <thead>
+        <tr>
+            <partial name="Tables/SortTabHeader" model="@(new SortTabHeaderModel(Model.SortState, "name", "Username"))" />
+            <partial name="Tables/SortTabHeader" model="@(new SortTabHeaderModel(Model.SortState, "uid", "User ID"))" />
+            <th>Discord ID</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var row in Model.Pagination.List.PaginatedItems)
+        {
+            <tr>
+                <td><strong>@row.LastSeenUserName</strong></td>
+                <td class="font-monospace small">@row.UserId</td>
+                <td class="font-monospace">@(row.DiscordId ?? "—")</td>
+                <td>
+                    <a asp-page="./Edit" asp-route-userId="@row.UserId" class="btn btn-secondary btn-sm">Edit</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<partial name="Tables/Pagination" for="Pagination" />
