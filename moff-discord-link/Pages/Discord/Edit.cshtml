@@ -29,7 +29,6 @@
                     <label asp-for="Input.DiscordId" class="form-label"></label>
                     <input asp-for="Input.DiscordId" class="form-control font-monospace" placeholder="e.g. 123456789012345678" />
                     <span asp-validation-for="Input.DiscordId" class="text-danger"></span>
-                    <div class="form-text">Leave blank and click Save to remove the link.</div>
                 </div>
                 <button type="submit" asp-page-handler="Save" asp-route-userId="@Model.Player.UserId" class="btn btn-primary">Save</button>
                 <button type="submit" asp-page-handler="Clear" asp-route-userId="@Model.Player.UserId" class="btn btn-danger ms-2"

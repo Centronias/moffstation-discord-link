@@ -22,22 +22,17 @@ public class DiscordEditModel(PostgresServerDbContext dbContext) : PageModel
 
     public async Task<IActionResult> OnGetAsync(Guid userId)
     {
-        var player = await dbContext.Player.FirstOrDefaultAsync(p => p.UserId == userId);
-        if (player == null)
-            return NotFound();
+        if (await LoadPlayerAsync(userId) is { } error)
+            return error;
 
-        Player = player;
         Input.DiscordId = await dbContext.GetDiscordIdAsync(userId);
         return Page();
     }
 
     public async Task<IActionResult> OnPostSaveAsync(Guid userId)
     {
-        var player = await dbContext.Player.FirstOrDefaultAsync(p => p.UserId == userId);
-        if (player == null)
-            return NotFound();
-
-        Player = player;
+        if (await LoadPlayerAsync(userId) is { } error)
+            return error;
 
         if (!ModelState.IsValid)
             return Page();
@@ -49,14 +44,21 @@ public class DiscordEditModel(PostgresServerDbContext dbContext) : PageModel
 
     public async Task<IActionResult> OnPostClearAsync(Guid userId)
     {
-        var player = await dbContext.Player.FirstOrDefaultAsync(p => p.UserId == userId);
-        if (player == null)
-            return NotFound();
-
-        Player = player;
+        if (await LoadPlayerAsync(userId) is { } error)
+            return error;
 
         await dbContext.SetDiscordIdAsync(userId, null);
         TempData.SetStatusInformation($"Discord link cleared for '{Player.LastSeenUserName}'.");
         return RedirectToPage("./Manage");
+    }
+
+    // Sets Player and returns null on success, or NotFound() if the user doesn't exist.
+    private async Task<IActionResult?> LoadPlayerAsync(Guid userId)
+    {
+        var player = await dbContext.Player.FirstOrDefaultAsync(p => p.UserId == userId);
+        if (player == null)
+            return NotFound();
+        Player = player;
+        return null;
     }
 }

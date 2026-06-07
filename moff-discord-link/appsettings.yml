@@ -28,12 +28,12 @@ AllowedHosts: "*"
 
 # You probably want to set these in `appsettings.Secret.yml
 Discord:
-  ClientId: ""
-  ClientSecret: ""
-  BotToken: ""
+#  ClientId: ""
+#  ClientSecret: ""
+#  BotToken: ""
 
 # You probably want to set these in `appsettings.Secret.yml
 Auth:
-  Authority: "https://central.spacestation14.io/web/"
-  ClientId: "9e2ce26f-28ba-4232-b4d9-8cc08993b33e"
-  ClientSecret: "foobar"
+#  Authority: "https://central.spacestation14.io/web/"
+#  ClientId: "9e2ce26f-28ba-4232-b4d9-8cc08993b33e"
+#  ClientSecret: "foobar"

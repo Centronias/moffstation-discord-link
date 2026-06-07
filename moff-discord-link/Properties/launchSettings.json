@@ -1,6 +1,6 @@
 ﻿{
   "profiles": {
-    "SS14.Admin": {
+    "moff-discord-link": {
       "commandName": "Project",
       "dotnetRunMessages": "true",
       "launchBrowser": false,

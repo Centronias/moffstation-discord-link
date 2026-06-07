@@ -21,16 +21,7 @@
     <div class="card mb-3">
         <div class="card-body">
             <h5 class="card-title">Discord Account</h5>
-            @if (Model.DiscordId == null)
-            {
-                <p class="card-text text-muted">No Discord account linked. Click below to authorize with Discord.</p>
-                <form method="post" asp-page-handler="StartDiscordAuth">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fab fa-discord me-1"></i>Connect with Discord
-                    </button>
-                </form>
-            }
-            else if (Model.IsLinked)
+            @if (Model.IsLinked)
             {
                 <p class="card-text">
                     Linked as: <strong>@(Model.DiscordUsername ?? Model.DiscordId)</strong>
@@ -48,13 +39,11 @@
             }
             else
             {
-                <p class="card-text">
-                    Authorized as: <strong>@Model.DiscordUsername</strong>
-                    <span class="text-muted">(ID: @Model.DiscordId)</span>
-                </p>
-                <form method="post" asp-page-handler="Link">
-                    <button type="submit" class="btn btn-success">Link Account</button>
-                    <a asp-page="/Discord/Index" class="btn btn-outline-secondary ms-2">Cancel</a>
+                <p class="card-text text-muted">No Discord account linked. Click below to authorize with Discord.</p>
+                <form method="post" asp-page-handler="StartDiscordAuth">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fab fa-discord me-1"></i>Connect with Discord
+                    </button>
                 </form>
             }
         </div>

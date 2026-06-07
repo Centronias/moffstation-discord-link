@@ -1,12 +1,2 @@
 ConnectionStrings:
   DefaultConnection: "Server=127.0.0.1;Port=5432;Database=ss14;User Id=postgres;Password=postgres"
-
-Discord:
-  ClientId: ""
-  ClientSecret: ""
-  BotToken: ""
-
-Auth:
-  Authority: "https://central.spacestation14.io/web/"
-  ClientId: ""
-  ClientSecret: ""

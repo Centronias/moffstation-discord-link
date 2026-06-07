@@ -7,9 +7,6 @@ public static partial class ServerDbContextExt
 {
     extension(ServerDbContext dbContext)
     {
-        /// <summary>
-        /// Returns the Discord ID for a single user, or null if not linked.
-        /// </summary>
         public Task<string?> GetDiscordIdAsync(Guid userId)
         {
             return dbContext.Player
@@ -18,9 +15,7 @@ public static partial class ServerDbContextExt
                 .FirstOrDefaultAsync();
         }
 
-        /// <summary>
-        /// Sets or clears a user's Discord link. Pass null to remove the link.
-        /// </summary>
+        // Pass null for discordId to remove an existing link.
         public async Task SetDiscordIdAsync(Guid userId, string? discordId)
         {
             var player = await dbContext.Player

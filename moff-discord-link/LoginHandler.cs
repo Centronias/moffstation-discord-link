@@ -11,14 +11,12 @@ public sealed class LoginHandler(PostgresServerDbContext dbContext, LinkGenerato
 {
     public async Task HandleTokenValidated(TokenValidatedContext ctx)
     {
-        var identity = ctx.Principal?.Identities.FirstOrDefault(i => i.IsAuthenticated);
-        if (identity == null)
-            throw new InvalidOperationException("Unable to find authenticated identity after token validation.");
+        var identity = ctx.Principal?.Identities.FirstOrDefault(i => i.IsAuthenticated)
+            ?? throw new InvalidOperationException("Unable to find authenticated identity after token validation.");
 
-        var guid = identity.Claims.GetUserId();
+        var userId = identity.Claims.GetUserId();
 
-        var whitelisted = await dbContext.Whitelist.AnyAsync(w => w.UserId == guid);
-        if (!whitelisted)
+        if (!await dbContext.Whitelist.AnyAsync(w => w.UserId == userId))
         {
             ctx.Response.Redirect(linkGenerator.GetPathByPage(ctx.HttpContext, "/LoginFailed")!);
             ctx.HandleResponse();
@@ -30,25 +28,21 @@ public sealed class LoginHandler(PostgresServerDbContext dbContext, LinkGenerato
             .ThenInclude(r => r!.Flags)
             .Include(a => a.Flags)
             .AsSplitQuery()
-            .FirstOrDefaultAsync(a => a.UserId == guid);
+            .FirstOrDefaultAsync(a => a.UserId == userId);
 
         if (adminData != null)
         {
             identity.AddClaim(new Claim(ClaimTypes.Role, Constants.AdminRole));
-
-            foreach (var flag in GetStringFlags(adminData))
-            {
+            foreach (var flag in GetAdminRoleFlags(adminData))
                 identity.AddClaim(new Claim(ClaimTypes.Role, flag));
-            }
         }
     }
 
-    private static IEnumerable<string> GetStringFlags(DbAdmin admin)
+    private static IEnumerable<string> GetAdminRoleFlags(DbAdmin admin)
     {
         var rankFlags = admin.AdminRank?.Flags.Select(f => f.Flag) ?? [];
-        var flagsPos = admin.Flags.Where(f => !f.Negative).Select(f => f.Flag);
-        var flagsNeg = admin.Flags.Where(f => f.Negative).Select(f => f.Flag);
-
-        return rankFlags.Union(flagsPos).Except(flagsNeg);
+        var positiveFlags = admin.Flags.Where(f => !f.Negative).Select(f => f.Flag);
+        var negativeFlags = admin.Flags.Where(f => f.Negative).Select(f => f.Flag);
+        return rankFlags.Union(positiveFlags).Except(negativeFlags);
     }
 }

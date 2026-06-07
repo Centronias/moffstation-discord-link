@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MoffDiscordLink.Controllers;
 
-[Controller]
 [Route("/Login")]
 public class Login : Controller
 {

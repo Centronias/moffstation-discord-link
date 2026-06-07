@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text.Json;
 using Content.Server.Database;
+using Microsoft.AspNetCore.Authentication.OAuth;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
@@ -14,16 +15,14 @@ namespace MoffDiscordLink;
 
 public class Startup(IConfiguration configuration)
 {
-    // This method gets called by the runtime. Use this method to add services to the container.
     public void ConfigureServices(IServiceCollection services)
     {
         services.AddScoped<LoginHandler>();
         services.AddHttpContextAccessor();
         services.AddHttpClient();
 
-        var connStr = configuration.GetConnectionString("DefaultConnection");
-        if (connStr == null)
-            throw new InvalidOperationException("Need to specify DefaultConnection connection string");
+        var connStr = configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("DefaultConnection connection string must be configured.");
 
         services.AddDbContext<PostgresServerDbContext>(options => options.UseNpgsql(connStr));
 
@@ -57,37 +56,24 @@ public class Startup(IConfiguration configuration)
                 options.ExpireTimeSpan = TimeSpan.FromHours(1);
                 options.AccessDeniedPath = "/AccessDenied";
             })
-            .AddCookie(AuthConsts.DiscordCookie, options => { options.ExpireTimeSpan = TimeSpan.FromMinutes(10); })
+            .AddCookie(AuthConsts.DiscordCookie, options => options.ExpireTimeSpan = TimeSpan.FromMinutes(10))
             .AddOAuth(AuthConsts.DiscordAuthScheme, options =>
             {
                 options.SignInScheme = AuthConsts.DiscordCookie;
                 options.ClientId = configuration["Discord:ClientId"]
-                    ?? throw new InvalidOperationException("Discord:ClientId must be configured");
+                    ?? throw new InvalidOperationException("Discord:ClientId must be configured.");
                 options.ClientSecret = configuration["Discord:ClientSecret"]
-                    ?? throw new InvalidOperationException("Discord:ClientSecret must be configured");
+                    ?? throw new InvalidOperationException("Discord:ClientSecret must be configured.");
                 options.AuthorizationEndpoint = "https://discord.com/oauth2/authorize";
                 options.TokenEndpoint = "https://discord.com/api/oauth2/token";
                 options.UserInformationEndpoint = "https://discord.com/api/users/@me";
                 options.CallbackPath = "/discord-callback";
                 options.Scope.Add("identify");
-                options.Events.OnCreatingTicket = async ctx =>
-                {
-                    using var request = new HttpRequestMessage(HttpMethod.Get, ctx.Options.UserInformationEndpoint);
-                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", ctx.AccessToken);
-                    var response = await ctx.Backchannel.SendAsync(request, ctx.HttpContext.RequestAborted);
-                    response.EnsureSuccessStatusCode();
-                    using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ctx.HttpContext.RequestAborted));
-                    var root = doc.RootElement;
-                    if (root.TryGetProperty("id", out var id))
-                        ctx.Identity!.AddClaim(new Claim(ClaimTypes.NameIdentifier, id.GetString()!));
-                    if (root.TryGetProperty("username", out var username))
-                        ctx.Identity!.AddClaim(new Claim(ClaimTypes.Name, username.GetString()!));
-                };
+                options.Events.OnCreatingTicket = FetchDiscordClaimsAsync;
             })
             .AddOpenIdConnect(AuthConsts.Ss14AuthScheme, options =>
             {
                 options.SignInScheme = AuthConsts.Ss14Cookie;
-
                 options.Authority = configuration["Auth:Authority"];
                 options.ClientId = configuration["Auth:ClientId"];
                 options.ClientSecret = configuration["Auth:ClientSecret"];
@@ -96,7 +82,6 @@ public class Startup(IConfiguration configuration)
                 options.Scope.Add("openid");
                 options.Scope.Add("profile");
                 options.GetClaimsFromUserInfoEndpoint = true;
-
                 options.Events.OnTokenValidated = async ctx =>
                 {
                     var handler = ctx.HttpContext.RequestServices.GetRequiredService<LoginHandler>();
@@ -105,7 +90,6 @@ public class Startup(IConfiguration configuration)
             });
     }
 
-    // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
     {
         app.UseSerilogRequestLogging();
@@ -117,7 +101,6 @@ public class Startup(IConfiguration configuration)
         else
         {
             app.UseExceptionHandler("/Error");
-            // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
             app.UseHsts();
         }
 
@@ -129,32 +112,22 @@ public class Startup(IConfiguration configuration)
         foreach (var entry in configuration.GetSection("ForwardProxies").Get<string[]>() ?? [])
         {
             if (IPAddress.TryParse(entry, out var ip))
-            {
                 forwardedHeadersOptions.KnownProxies.Add(ip);
-            }
             else if (IPNetwork.TryParse(entry, out var network))
-            {
                 forwardedHeadersOptions.KnownIPNetworks.Add(network);
-            }
             else
-            {
                 throw new InvalidOperationException($"Invalid IP address or CIDR notation in ForwardProxies: {entry}");
-            }
         }
 
         app.UseForwardedHeaders(forwardedHeadersOptions);
 
         var pathBase = configuration.GetValue<string>("PathBase");
         if (!string.IsNullOrEmpty(pathBase))
-        {
             app.UsePathBase(pathBase);
-        }
 
         app.UseHttpsRedirection();
         app.UseStaticFiles();
-
         app.UseRouting();
-
         app.UseAuthentication();
         app.UseAuthorization();
 
@@ -163,5 +136,22 @@ public class Startup(IConfiguration configuration)
             endpoints.MapRazorPages();
             endpoints.MapControllers();
         });
+    }
+
+    private static async Task FetchDiscordClaimsAsync(OAuthCreatingTicketContext ctx)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, ctx.Options.UserInformationEndpoint);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", ctx.AccessToken);
+
+        var response = await ctx.Backchannel.SendAsync(request, ctx.HttpContext.RequestAborted);
+        response.EnsureSuccessStatusCode();
+
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ctx.HttpContext.RequestAborted));
+        var root = doc.RootElement;
+
+        if (root.TryGetProperty("id", out var id))
+            ctx.Identity!.AddClaim(new Claim(ClaimTypes.NameIdentifier, id.GetString()!));
+        if (root.TryGetProperty("username", out var username))
+            ctx.Identity!.AddClaim(new Claim(ClaimTypes.Name, username.GetString()!));
     }
 }

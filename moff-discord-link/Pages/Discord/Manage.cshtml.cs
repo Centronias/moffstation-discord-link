@@ -29,25 +29,16 @@ public class DiscordManageModel(PostgresServerDbContext dbContext) : PageModel
 
         if (!string.IsNullOrWhiteSpace(CurrentFilter))
         {
-            if (Guid.TryParse(CurrentFilter, out var guid))
-            {
-                query = query.Where(p => p.UserId == guid);
-            }
-            else
-            {
-                query = query.Where(p =>
+            query = Guid.TryParse(CurrentFilter, out var guid)
+                ? query.Where(p => p.UserId == guid)
+                : query.Where(p =>
                     EF.Functions.ILike(p.LastSeenUserName, $"%{CurrentFilter}%") ||
-                    (
-                        p.MoffPlayer != null &&
-                        p.MoffPlayer!.DiscordId != null &&
-                        EF.Functions.ILike(p.MoffPlayer.DiscordId!, $"%{CurrentFilter}%")
-                    ));
-            }
+                    (p.MoffPlayer != null && EF.Functions.ILike(p.MoffPlayer.DiscordId!, $"%{CurrentFilter}%")));
         }
 
-        var rowQuery = SortState.ApplyToQuery(query)
-            .Select(p => new PlayerDiscordRow(p.UserId, p.LastSeenUserName, p.MoffPlayer != null ? p.MoffPlayer.DiscordId : null));
+        var rows = SortState.ApplyToQuery(query)
+            .Select(p => new PlayerDiscordRow(p.UserId, p.LastSeenUserName, p.MoffPlayer!.DiscordId));
 
-        await Pagination.LoadAsync(rowQuery);
+        await Pagination.LoadAsync(rows);
     }
 }

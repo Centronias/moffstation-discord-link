@@ -17,26 +17,18 @@ public class DiscordLinkModel(
     IConfiguration configuration
 ) : PageModel
 {
-    private const string TempKeyDiscordId = "PendingDiscordId";
-    private const string TempKeyDiscordUsername = "PendingDiscordUsername";
-    private const string TempKeyForUserId = "PendingDiscordForUserId";
-
-    public string? DiscordUsername { get; set; }
-    public string? DiscordId { get; set; }
+    public string? DiscordId { get; private set; }
+    public string? DiscordUsername { get; private set; }
     public bool IsLinked { get; private set; }
 
     public async Task<IActionResult> OnGetAsync()
     {
-        // Consume the Discord OAuth cookie immediately (single-use).
-        // Discord ID is stored in TempData so OnPostLink can validate it server-side.
-        if (await ConsumeDiscordCookieAsync() is var (discordId, discordUsername))
+        // OAuth callback: consume the single-use Discord cookie and link immediately.
+        if (await TryConsumeDiscordOAuthAsync() is { } discord)
         {
-            DiscordId = discordId;
-            DiscordUsername = discordUsername;
-            TempData[TempKeyDiscordId] = discordId;
-            TempData[TempKeyDiscordUsername] = discordUsername;
-            TempData[TempKeyForUserId] = User.Claims.GetUserId().ToString();
-            return Page();
+            await dbContext.SetDiscordIdAsync(User.Claims.GetUserId(), discord.Id);
+            TempData.SetStatusInformation($"Discord account '{discord.Username}' linked successfully.");
+            return RedirectToPage();
         }
 
         var userId = User.Claims.GetUserId();
@@ -55,30 +47,30 @@ public class DiscordLinkModel(
         AuthConsts.DiscordAuthScheme
     );
 
-    public async Task<IActionResult> OnPostLink()
+    public async Task<IActionResult> OnPostUnlink()
     {
-        var pendingDiscordId = TempData[TempKeyDiscordId] as string;
-        var pendingDiscordUsername = TempData[TempKeyDiscordUsername] as string;
-        var pendingForUserId = TempData[TempKeyForUserId] as string;
-
-        var userId = User.Claims.GetUserId();
-        if (pendingDiscordId == null || pendingForUserId != userId.ToString())
-        {
-            TempData.SetStatusError("Discord authorization expired. Please try connecting again.");
-            return RedirectToPage();
-        }
-
-        await dbContext.SetDiscordIdAsync(userId, pendingDiscordId);
-        TempData.SetStatusInformation($"Discord account '{pendingDiscordUsername ?? pendingDiscordId}' linked successfully.");
+        await dbContext.SetDiscordIdAsync(User.Claims.GetUserId(), null);
+        TempData.SetStatusInformation("Discord account unlinked.");
         return RedirectToPage();
     }
 
-    public async Task<IActionResult> OnPostUnlink()
+    // Returns the Discord identity from the OAuth cookie and immediately invalidates it.
+    private async Task<(string Id, string Username)?> TryConsumeDiscordOAuthAsync()
     {
-        var userId = User.Claims.GetUserId();
-        await dbContext.SetDiscordIdAsync(userId, null);
-        TempData.SetStatusInformation("Discord account unlinked.");
-        return RedirectToPage();
+        var result = await HttpContext.AuthenticateAsync(AuthConsts.DiscordCookie);
+        if (!result.Succeeded)
+            return null;
+
+        await HttpContext.SignOutAsync(AuthConsts.DiscordCookie);
+
+        var principal = result.Principal
+            ?? throw new InvalidOperationException("Discord authentication succeeded with null principal.");
+
+        var id = principal.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? throw new InvalidOperationException("Discord principal is missing NameIdentifier claim.");
+
+        var username = principal.FindFirstValue(ClaimTypes.Name) ?? id;
+        return (id, username);
     }
 
     private async Task<string?> LookupDiscordUsernameAsync(string discordId)
@@ -99,24 +91,5 @@ public class DiscordLinkModel(
         if (json.TryGetProperty("global_name", out var globalName) && globalName.GetString() is { } name)
             return name;
         return json.TryGetProperty("username", out var username) ? username.GetString() : null;
-    }
-
-    // Reads the Discord OAuth cookie, signs it out immediately (single-use), and returns the claims.
-    private async Task<(string discordId, string discordUsername)?> ConsumeDiscordCookieAsync()
-    {
-        var discordAuth = await HttpContext.AuthenticateAsync(AuthConsts.DiscordCookie);
-        if (!discordAuth.Succeeded)
-            return null;
-
-        await HttpContext.SignOutAsync(AuthConsts.DiscordCookie);
-
-        if (discordAuth.Principal is not { } principal)
-            throw new InvalidOperationException("Discord authentication succeeded with null principal.");
-
-        if (principal.FindFirstValue(ClaimTypes.NameIdentifier) is not { } id)
-            throw new InvalidOperationException("Discord principal is missing NameIdentifier claim.");
-
-        var username = principal.FindFirstValue(ClaimTypes.Name) ?? id;
-        return (id, username);
     }
 }

@@ -79,13 +79,11 @@ public sealed record PaginatedList<T>(T[] PaginatedItems, int? TotalCount, int P
         Func<IEnumerable<TQuery>, IEnumerable<T>> convert,
         int pageIndex,
         int pageSize,
-        int? optCount = null,
+        int? count = null,
         bool showTotal = true
     ) => new(
-        convert(
-            await query.Skip(pageIndex * pageSize).Take(pageSize).ToArrayAsync()
-        ).ToArray(),
-        showTotal ? optCount ?? await query.CountAsync() : null,
+        convert(await query.Skip(pageIndex * pageSize).Take(pageSize).ToArrayAsync()).ToArray(),
+        showTotal ? count ?? await query.CountAsync() : null,
         pageIndex,
         pageSize
     );
