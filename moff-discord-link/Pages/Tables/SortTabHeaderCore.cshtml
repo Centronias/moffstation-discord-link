@@ -1,0 +1,5 @@
+﻿@model SortTabHeaderModel
+
+<a asp-all-route-data="@Model.State.AllRouteData.ToDictionary()"
+   asp-route-sort="@Model.State.OrderStringForColumnButton(Model.Column)">
+    @Model.Text</a>

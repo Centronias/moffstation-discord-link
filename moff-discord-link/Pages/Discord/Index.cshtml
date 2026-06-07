@@ -1,0 +1,51 @@
+@page
+@using MoffDiscordLink.Extensions
+@model MoffDiscordLink.Pages.Discord.DiscordLinkModel
+
+@{
+    ViewData["Title"] = "Link Discord";
+}
+
+<partial name="Shared/StatusMessageAlert"/>
+
+<div class="container">
+    <h1 class="mb-4">Link Discord Account</h1>
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <h5 class="card-title">SS14 Account</h5>
+            <p class="card-text">Logged in as: <strong>@User.Ss14Identity()?.Name</strong></p>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <h5 class="card-title">Discord Account</h5>
+            @if (Model.IsLinked)
+            {
+                <p class="card-text">
+                    Linked as: <strong>@(Model.DiscordUsername ?? Model.DiscordId)</strong>
+                    @if (Model.DiscordUsername != null)
+                    {
+                        <span class="text-muted">(ID: @Model.DiscordId)</span>
+                    }
+                </p>
+                <form method="post" asp-page-handler="StartDiscordAuth" class="d-inline">
+                    <button type="submit" class="btn btn-outline-secondary">Re-link</button>
+                </form>
+                <form method="post" asp-page-handler="Unlink" class="d-inline ms-2">
+                    <button type="submit" class="btn btn-outline-danger">Unlink</button>
+                </form>
+            }
+            else
+            {
+                <p class="card-text text-muted">No Discord account linked. Click below to authorize with Discord.</p>
+                <form method="post" asp-page-handler="StartDiscordAuth">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fab fa-discord me-1"></i>Connect with Discord
+                    </button>
+                </form>
+            }
+        </div>
+    </div>
+</div>

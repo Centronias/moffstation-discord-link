@@ -1,0 +1,47 @@
+@page
+@model MoffDiscordLink.Pages.Discord.DiscordEditModel
+
+@{
+    ViewData["Title"] = $"Edit Discord Link — {Model.Player.LastSeenUserName}";
+}
+
+<partial name="Shared/StatusMessageAlert" />
+
+<div class="container">
+    <h1 class="mb-4">Edit Discord Link</h1>
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <h5 class="card-title">Player</h5>
+            <p class="card-text">
+                <strong>@Model.Player.LastSeenUserName</strong>
+                <span class="text-muted font-monospace ms-2">@Model.Player.UserId</span>
+            </p>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">Discord Link</h5>
+            <form method="post">
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-2"></div>
+                <div class="mb-3">
+                    <label asp-for="Input.DiscordId" class="form-label"></label>
+                    <input asp-for="Input.DiscordId" class="form-control font-monospace" placeholder="e.g. 123456789012345678" />
+                    <span asp-validation-for="Input.DiscordId" class="text-danger"></span>
+                </div>
+                <button type="submit" asp-page-handler="Save" asp-route-userId="@Model.Player.UserId" class="btn btn-primary">Save</button>
+                <button type="submit" asp-page-handler="Clear" asp-route-userId="@Model.Player.UserId" class="btn btn-danger ms-2"
+                        data-playername="@Model.Player.LastSeenUserName"
+                        onclick="return confirm('Remove the Discord link for ' + this.dataset.playername + '?')">
+                    Clear Link
+                </button>
+                <a asp-page="./Manage" class="btn btn-outline-secondary ms-2">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="Shared/_ValidationScriptsPartial" />
+}
