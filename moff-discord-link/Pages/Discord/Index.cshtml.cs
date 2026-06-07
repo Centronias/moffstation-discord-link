@@ -23,6 +23,9 @@ public class DiscordLinkModel(
 
     public async Task<IActionResult> OnGetAsync()
     {
+        if (HttpContext.Request.Query.ContainsKey(AuthConsts.DiscordDeniedParam))
+            TempData.SetStatusError("Discord authorization was cancelled.");
+
         // OAuth callback: consume the single-use Discord cookie and link immediately.
         if (await TryConsumeDiscordOAuthAsync() is { } discord)
         {

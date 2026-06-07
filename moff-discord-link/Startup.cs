@@ -5,6 +5,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using Content.Server.Database;
 using Microsoft.AspNetCore.Authentication.OAuth;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
@@ -22,7 +23,7 @@ public class Startup(IConfiguration configuration)
         services.AddHttpClient();
 
         var connStr = configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("DefaultConnection connection string must be configured.");
+                      ?? throw new InvalidOperationException("DefaultConnection connection string must be configured.");
 
         services.AddDbContext<PostgresServerDbContext>(options => options.UseNpgsql(connStr));
 
@@ -61,15 +62,28 @@ public class Startup(IConfiguration configuration)
             {
                 options.SignInScheme = AuthConsts.DiscordCookie;
                 options.ClientId = configuration["Discord:ClientId"]
-                    ?? throw new InvalidOperationException("Discord:ClientId must be configured.");
+                                   ?? throw new InvalidOperationException("Discord:ClientId must be configured.");
                 options.ClientSecret = configuration["Discord:ClientSecret"]
-                    ?? throw new InvalidOperationException("Discord:ClientSecret must be configured.");
+                                       ?? throw new InvalidOperationException("Discord:ClientSecret must be configured.");
                 options.AuthorizationEndpoint = "https://discord.com/oauth2/authorize";
                 options.TokenEndpoint = "https://discord.com/api/oauth2/token";
                 options.UserInformationEndpoint = "https://discord.com/api/users/@me";
                 options.CallbackPath = "/discord-callback";
                 options.Scope.Add("identify");
                 options.Events.OnCreatingTicket = FetchDiscordClaimsAsync;
+                options.Events.OnRemoteFailure = ctx =>
+                {
+                    ctx.HandleResponse();
+                    ctx.Response.Redirect(
+                        QueryHelpers.AddQueryString(
+                            ctx.Properties?.RedirectUri ??
+                            throw new InvalidOperationException("Discord OAuth failure has no redirect URI."),
+                            AuthConsts.DiscordDeniedParam,
+                            "true"
+                        )
+                    );
+                    return Task.CompletedTask;
+                };
             })
             .AddOpenIdConnect(AuthConsts.Ss14AuthScheme, options =>
             {

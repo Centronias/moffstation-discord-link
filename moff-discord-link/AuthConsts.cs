@@ -10,4 +10,6 @@ public static class AuthConsts
 
     public const string AdminPolicy = "Admin";
     public const string PiiPolicy = "Pii";
+
+    public const string DiscordDeniedParam = "discordDenied";
 }
